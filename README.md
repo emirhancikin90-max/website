@@ -22,8 +22,13 @@ Leistungen verwalten, Öffnungszeiten & Urlaubstage, Praxisdaten, Buchungs-Einst
 
 **Sicherheit:** bcrypt-Passwörter, HttpOnly/SameSite-Cookie, Rate-Limiting, Helmet/CSP, Honeypot, Doppelbuchungs-Schutz per Transaktion.
 
+## Website ohne Code gestalten
+
+Im Admin unter **„Website gestalten"**: Farbschema per Klick (oder eigene Farben und Schrift), alle Texte, Titelbild und Porträt (werden im Browser automatisch verkleinert), Kundenstimmen, FAQ sowie Impressum/Datenschutz. Dazu Wochenansicht und CSV-Export bei den Terminen.
+
+**E-Mails:** `SMTP_URL=smtps://user:pass@smtp.example.com:465 npm start` (optional `MAIL_FROM`, `PUBLIC_URL=https://ihre-domain.de`). Ohne `SMTP_URL` wird nichts gesendet.
+
 ## Hinweise
 
-- Es werden keine E-Mails versendet (Bestätigung erfolgt auf der Seite). Für Mailversand z. B. `nodemailer` in `POST /api/appointments` ergänzen.
 - Impressum und Datenschutz sind nur Platzhalter und müssen rechtlich geprüft/ersetzt werden.
-- Daten liegen in `data/praxis.db` (per Backup sichern).
+- Daten und hochgeladene Bilder liegen in `data/` (per Backup sichern).

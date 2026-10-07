@@ -24,6 +24,28 @@
     '<path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.300A7 7 0 0 0 12 3zM9 22h6"/>',
   ];
 
+  function applyContent(d) {
+    const c = d.content;
+    document.querySelectorAll('[data-c]').forEach(el => {
+      const v = c[el.dataset.c] ?? '';
+      if (el.hasAttribute('data-em')) el.innerHTML = esc(v).replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      else el.textContent = v;
+    });
+    $('#trust').innerHTML = c.trust.split('\n').filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('');
+    $('#steps').innerHTML = [1, 2, 3].map(i => `<div class="step"><h3>${esc(c['step' + i + '_t'])}</h3><p>${esc(c['step' + i + '_x'])}</p></div>`).join('');
+    $('#aboutText').innerHTML = c.about_text.split(/\n\s*\n/).map((p, i) => `<p${i ? '' : ' class="lead"'}>${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+    if (c.about_image) $('#portrait').innerHTML = `<img src="${esc(c.about_image)}" alt="${esc(d.settings.therapist)}" loading="lazy">`;
+    if (c.hero_image) $('#heroArt').innerHTML = `<img class="hero-img" src="${esc(c.hero_image)}" alt="">`;
+    if (d.testimonials.length) {
+      $('#stimmen').hidden = false;
+      $('#testimonials').innerHTML = d.testimonials.map(t => `<figure class="card quote"><blockquote>„${esc(t.body)}“</blockquote><figcaption>${esc(t.title)}</figcaption></figure>`).join('');
+    }
+    if (d.faqs.length) {
+      $('#faq').hidden = false;
+      $('#faqList').innerHTML = d.faqs.map(f => `<details><summary>${esc(f.title)}</summary><p>${esc(f.body)}</p></details>`).join('');
+    }
+  }
+
   let data, state = { service: null, date: null, time: null, month: new Date(), avail: {}, step: 1 };
 
   fetch('/api/public').then(r => r.json()).then(d => {
@@ -33,6 +55,7 @@
       const v = d.settings[el.dataset.bind]; el.href = el.dataset.bindHref === 'tel' ? 'tel:' + v.replace(/[^\d+]/g, '') : 'mailto:' + v;
     });
     document.title = `${d.settings.practice_name} – Termin online buchen`;
+    applyContent(d);
     $('#services').innerHTML = d.services.map((s, i) => `
       <article class="card"><div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[i % ICONS.length]}</svg></div>
         <h3>${esc(s.name)}</h3><p>${esc(s.description)}</p>

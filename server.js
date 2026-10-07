@@ -5,7 +5,11 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const mail = require('./mail');
 const { db, getSettings } = require('./db');
+const UPLOAD_DIR = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const app = express();
 app.disable('x-powered-by');
@@ -24,7 +28,8 @@ app.use(helmet({
     },
   },
 }));
-app.use(express.json({ limit: '50kb' }));
+const jsonSmall = express.json({ limit: '50kb' });
+app.use((req, res, next) => req.method === 'POST' && req.path.startsWith('/api/admin/upload/') ? next() : jsonSmall(req, res, next));
 
 // ---------- helpers ----------
 const pad = n => String(n).padStart(2, '0');
@@ -75,6 +80,62 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ---------- Theme ----------
+const CONTENT_KEYS = ['hero_eyebrow', 'hero_title', 'hero_text', 'trust', 'services_title', 'services_text', 'steps_title',
+  'step1_t', 'step1_x', 'step2_t', 'step2_x', 'step3_t', 'step3_x', 'about_title', 'about_text', 'about_image', 'hero_image'];
+const isHex = c => /^#[0-9a-f]{6}$/i.test(c);
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  let h = 0, sat = 0;
+  if (d) {
+    sat = d / (1 - Math.abs(2 * l - 1));
+    h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+  }
+  return [Math.round(h), Math.round(sat * 100), Math.round(l * 100)];
+}
+const hsl = (h, s, l) => `hsl(${h} ${Math.max(0, Math.min(100, s))}% ${Math.max(0, Math.min(100, l))}%)`;
+app.get('/theme.css', wrap((req, res) => {
+  const s = getSettings();
+  const primary = isHex(s.color_primary) ? s.color_primary : '#3f7d6b';
+  const accent = isHex(s.color_accent) ? s.color_accent : '#e07a5f';
+  const [h, sat, l] = hexToHsl(primary), [ah, as] = hexToHsl(accent);
+  const sans = "system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif";
+  res.type('text/css').set('Cache-Control', 'no-cache').send(`:root{
+  --primary:${primary};--primary-d:${hsl(h, sat, Math.min(l, 45) - 10)};--primary-l:${hsl(h, Math.min(sat, 45), 93)};
+  --accent:${accent};--accent-l:${hsl(ah, Math.min(as, 70), 93)};
+  --bg:${hsl(h, 28, 97)};--sand:${hsl(h, 24, 92)};--line:${hsl(h, 16, 87)};--ink:${hsl(h, 22, 17)};--muted:${hsl(h, 8, 42)};
+  ${s.font === 'sans' ? `--serif:${sans};` : ''}}
+${s.font === 'sans' ? 'h1,h2,h3{letter-spacing:-.02em;font-weight:700}' : ''}`);
+}));
+
+// ---------- E-Mail ----------
+const deDate = d => d.split('-').reverse().join('.');
+const baseUrl = req => process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+function notifyBooking(req, a) {
+  const s = getSettings();
+  if (s.notify !== '1' || !mail.enabled) return;
+  const link = `${baseUrl(req)}/termin?t=${a.token}`;
+  const confirmed = a.status === 'confirmed';
+  mail.send({ from: s.email, to: a.email, replyTo: s.email,
+    subject: confirmed ? `Ihr Termin am ${deDate(a.date)} ist bestätigt` : `Ihre Terminanfrage für den ${deDate(a.date)}`,
+    text: `Guten Tag ${a.name},\n\n${confirmed ? 'Ihr Termin ist bestätigt' : 'vielen Dank für Ihre Anfrage – wir bestätigen den Termin schnellstmöglich'}:\n\n${a.service}\n${deDate(a.date)}, ${a.start}–${a.end} Uhr\n\nTermin ansehen oder absagen: ${link}\n\nViele Grüße\n${s.practice_name}\n${s.phone}` });
+  mail.send({ from: s.email, to: s.email, replyTo: a.email, subject: `Neue Terminanfrage: ${a.name}, ${deDate(a.date)} ${a.start}`,
+    text: `${a.name} (${a.email}${a.phone ? ', ' + a.phone : ''})\n${a.service}\n${deDate(a.date)}, ${a.start}–${a.end} Uhr\nStatus: ${a.status}\n\n${a.message || ''}\n\nVerwalten: ${baseUrl(req)}/admin#termine` });
+}
+function notifyStatus(req, id) {
+  const s = getSettings();
+  if (s.notify !== '1' || !mail.enabled) return;
+  const a = db.prepare('SELECT a.*, sv.name AS service FROM appointments a JOIN services sv ON sv.id=a.service_id WHERE a.id=?').get(id);
+  if (!a || !a.email) return;
+  const link = `${baseUrl(req)}/termin?t=${a.token}`;
+  const text = a.status === 'confirmed'
+    ? `Guten Tag ${a.name},\n\nIhr Termin ist bestätigt:\n${a.service}\n${deDate(a.date)}, ${a.start}–${a.end} Uhr\n\nTermin ansehen oder absagen: ${link}\n\nViele Grüße\n${s.practice_name}`
+    : `Guten Tag ${a.name},\n\nleider müssen wir Ihren Termin (${a.service}, ${deDate(a.date)}, ${a.start} Uhr) absagen. Bitte buchen Sie gern einen neuen Termin auf unserer Website oder rufen Sie uns an: ${s.phone}\n\nViele Grüße\n${s.practice_name}`;
+  mail.send({ from: s.email, to: a.email, replyTo: s.email, subject: a.status === 'confirmed' ? 'Ihr Termin ist bestätigt' : 'Ihr Termin wurde abgesagt', text });
+}
+
 // ---------- public API ----------
 const publicLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
 const bookLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false,
@@ -85,9 +146,17 @@ app.get('/api/public', publicLimiter, wrap((req, res) => {
   res.json({
     settings: { practice_name: s.practice_name, therapist: s.therapist, phone: s.phone, email: s.email,
       address: s.address, max_days_ahead: Number(s.max_days_ahead), auto_confirm: s.auto_confirm === '1' },
+    content: Object.fromEntries(CONTENT_KEYS.map(k => [k, s[k] ?? ''])),
+    testimonials: db.prepare("SELECT title,body FROM items WHERE type='testimonial' ORDER BY sort,id").all(),
+    faqs: db.prepare("SELECT title,body FROM items WHERE type='faq' ORDER BY sort,id").all(),
     services: db.prepare('SELECT id,name,description,duration,price FROM services WHERE active=1 ORDER BY sort,id').all(),
     hours: db.prepare('SELECT weekday,enabled,open,close FROM hours ORDER BY (weekday+6)%7').all(),
   });
+}));
+
+app.get('/api/legal/:page', publicLimiter, wrap((req, res) => {
+  if (!['impressum', 'datenschutz'].includes(req.params.page)) return res.status(404).json({ error: 'Nicht gefunden' });
+  res.json({ text: getSettings()[req.params.page] });
 }));
 
 app.get('/api/availability', publicLimiter, wrap((req, res) => {
@@ -124,6 +193,7 @@ app.post('/api/appointments', bookLimiter, wrap((req, res) => {
     return { token, status, end, service: svc.name };
   })();
   if (!result) return res.status(409).json({ error: 'Dieser Zeitpunkt ist leider nicht mehr verfügbar. Bitte wählen Sie einen anderen.' });
+  notifyBooking(req, { name, email, phone, message, date, start, ...result });
   res.status(201).json({ ok: true, date, start, ...result });
 }));
 
@@ -219,6 +289,7 @@ admin.patch('/appointments/:id', wrap((req, res) => {
   const { status } = req.body || {};
   if (!['pending', 'confirmed', 'cancelled'].includes(status)) return res.status(400).json({ error: 'Ungültiger Status' });
   const r = db.prepare('UPDATE appointments SET status=? WHERE id=?').run(status, req.params.id);
+  if (r.changes && status !== 'pending') notifyStatus(req, req.params.id);
   res.status(r.changes ? 200 : 404).json({ ok: !!r.changes });
 }));
 admin.delete('/appointments/:id', wrap((req, res) => {
@@ -279,13 +350,20 @@ admin.delete('/blocked/:id', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
-admin.get('/settings', (req, res) => res.json(getSettings()));
+admin.get('/settings', (req, res) => res.json({ ...getSettings(), mail_enabled: mail.enabled }));
 admin.put('/settings', wrap((req, res) => {
   const allowed = { practice_name: 100, therapist: 100, phone: 40, email: 150, address: 200,
-    slot_step: 3, lead_hours: 3, max_days_ahead: 3, auto_confirm: 1 };
+    slot_step: 3, lead_hours: 3, max_days_ahead: 3, auto_confirm: 1, notify: 1,
+    hero_eyebrow: 100, hero_title: 200, hero_text: 600, trust: 300, services_title: 120, services_text: 400, steps_title: 120,
+    step1_t: 60, step1_x: 300, step2_t: 60, step2_x: 300, step3_t: 60, step3_x: 300, about_title: 120, about_text: 3000,
+    impressum: 20000, datenschutz: 20000, font: 5 };
+  const b = req.body || {};
+  for (const k of ['color_primary', 'color_accent']) if (k in b && !isHex(String(b[k]))) return res.status(400).json({ error: 'Ungültige Farbe.' });
+  if ('font' in b && !['serif', 'sans'].includes(b.font)) return res.status(400).json({ error: 'Ungültige Schrift.' });
   const up = db.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)');
   db.transaction(() => {
-    for (const [k, max] of Object.entries(allowed)) if (k in (req.body || {})) up.run(k, str(req.body[k], max));
+    for (const [k, max] of Object.entries(allowed)) if (k in b) up.run(k, String(b[k] ?? '').replace(/\r/g, '').trim().slice(0, max));
+    for (const k of ['color_primary', 'color_accent']) if (k in b) up.run(k, String(b[k]).toLowerCase());
   })();
   res.json({ ok: true });
 }));
@@ -298,7 +376,69 @@ admin.put('/password', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// Inhalte: Kundenstimmen & FAQ
+const ITEM_TYPES = ['testimonial', 'faq'];
+admin.get('/items/:type', wrap((req, res) => {
+  if (!ITEM_TYPES.includes(req.params.type)) return res.status(404).json({ error: 'Unbekannt' });
+  res.json(db.prepare('SELECT * FROM items WHERE type=? ORDER BY sort,id').all(req.params.type));
+}));
+admin.post('/items/:type', wrap((req, res) => {
+  if (!ITEM_TYPES.includes(req.params.type)) return res.status(404).json({ error: 'Unbekannt' });
+  const title = str(req.body?.title, 150), body = str(req.body?.body, 1500);
+  if (!title) return res.status(400).json({ error: 'Bitte ausfüllen.' });
+  const sort = db.prepare('SELECT COALESCE(MAX(sort),0)+1 n FROM items WHERE type=?').get(req.params.type).n;
+  res.status(201).json({ id: db.prepare('INSERT INTO items(type,title,body,sort) VALUES (?,?,?,?)').run(req.params.type, title, body, sort).lastInsertRowid });
+}));
+admin.put('/items/:id', wrap((req, res) => {
+  const title = str(req.body?.title, 150), body = str(req.body?.body, 1500);
+  if (!title) return res.status(400).json({ error: 'Bitte ausfüllen.' });
+  db.prepare('UPDATE items SET title=?, body=? WHERE id=?').run(title, body, req.params.id);
+  res.json({ ok: true });
+}));
+admin.delete('/items/:id', wrap((req, res) => {
+  db.prepare('DELETE FROM items WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
+// Bilder (Client verkleinert vorab; hier wird Typ und Größe geprüft)
+const IMAGE_KINDS = ['about_image', 'hero_image'];
+const MAGIC = [['jpg', [0xff, 0xd8, 0xff]], ['png', [0x89, 0x50, 0x4e, 0x47]], ['webp', [0x52, 0x49, 0x46, 0x46]]];
+function removeImage(kind) {
+  const old = getSettings()[kind];
+  if (old && old.startsWith('/uploads/')) fs.rmSync(path.join(UPLOAD_DIR, path.basename(old)), { force: true });
+  db.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)').run(kind, '');
+}
+app.post('/api/admin/upload/:kind', express.json({ limit: '8mb' }), requireAdmin, wrap((req, res) => {
+  if (!IMAGE_KINDS.includes(req.params.kind)) return res.status(404).json({ error: 'Unbekannt' });
+  const m = /^data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data || ''));
+  if (!m) return res.status(400).json({ error: 'Bitte ein Bild (JPG, PNG oder WebP) wählen.' });
+  const buf = Buffer.from(m[1], 'base64');
+  const type = MAGIC.find(([, sig]) => sig.every((b, i) => buf[i] === b));
+  if (!type || buf.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Ungültiges oder zu großes Bild.' });
+  const name = `${req.params.kind}-${crypto.randomBytes(5).toString('hex')}.${type[0]}`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+  removeImage(req.params.kind);
+  db.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)').run(req.params.kind, '/uploads/' + name);
+  res.json({ ok: true, url: '/uploads/' + name });
+}));
+admin.delete('/upload/:kind', wrap((req, res) => {
+  if (!IMAGE_KINDS.includes(req.params.kind)) return res.status(404).json({ error: 'Unbekannt' });
+  removeImage(req.params.kind);
+  res.json({ ok: true });
+}));
+
+// CSV-Export
+admin.get('/export.csv', wrap((req, res) => {
+  const cell = v => { v = String(v ?? ''); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return `"${v.replace(/"/g, '""')}"`; };
+  const rows = db.prepare(`SELECT a.date,a.start,a.end,s.name AS service,a.name,a.email,a.phone,a.status,a.message,a.created_at
+    FROM appointments a JOIN services s ON s.id=a.service_id ORDER BY a.date,a.start`).all();
+  const head = ['Datum', 'Beginn', 'Ende', 'Leistung', 'Name', 'E-Mail', 'Telefon', 'Status', 'Nachricht', 'Angelegt'];
+  const csv = '\ufeff' + [head, ...rows.map(r => Object.values(r))].map(r => r.map(cell).join(';')).join('\r\n');
+  res.type('text/csv; charset=utf-8').set('Content-Disposition', `attachment; filename="termine-${todayStr()}.csv"`).send(csv);
+}));
+
 // ---------- static ----------
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', index: false }));
 app.use('/api', (req, res) => res.status(404).json({ error: 'Nicht gefunden' }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 app.use((err, req, res, next) => {

@@ -7,12 +7,13 @@
 <meta name="description" content="Ergotherapie für Kinder und Erwachsene. Einfühlsam, alltagsnah und individuell – Termine bequem online buchen.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%233f7d6b'/%3E%3Cpath d='M9 18c3-8 11-8 14 0-4 4-10 4-14 0z' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/theme.css">
 </head>
 <body>
 <header class="site" id="top">
   <div class="container nav">
     <a href="#top" class="brand">
-      <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#3f7d6b"/><path d="M9 20c3-9 13-9 16 0-4 5-12 5-16 0z" fill="#fff"/><circle cx="17" cy="12" r="3" fill="#e07a5f"/></svg>
+      <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" style="fill:var(--primary)"/><path d="M9 20c3-9 13-9 16 0-4 5-12 5-16 0z" fill="#fff"/><circle cx="17" cy="12" r="3" style="fill:var(--accent)"/></svg>
       <span data-bind="practice_name">Praxis für Ergotherapie</span>
     </a>
     <button class="burger" aria-label="Menü" aria-expanded="false"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
@@ -28,30 +29,30 @@
 
 <main>
 <section class="hero">
-  <div class="blob" style="width:420px;height:420px;background:#bfe0d3;top:-120px;right:-80px"></div>
-  <div class="blob" style="width:320px;height:320px;background:#f6cdbd;bottom:-120px;left:-80px"></div>
+  <div class="blob" style="width:420px;height:420px;background:var(--primary-l);top:-120px;right:-80px"></div>
+  <div class="blob" style="width:320px;height:320px;background:var(--accent-l);bottom:-120px;left:-80px"></div>
   <div class="container grid">
     <div>
-      <span class="eyebrow">Ergotherapie für Kinder &amp; Erwachsene</span>
-      <h1>Mehr <em>Selbstständigkeit</em> im Alltag – Schritt für Schritt.</h1>
-      <p class="lead">Wir begleiten Sie und Ihre Familie einfühlsam, alltagsnah und mit viel Zeit. Ihren Termin buchen Sie in wenigen Klicks – rund um die Uhr.</p>
+      <span class="eyebrow" data-c="hero_eyebrow">Ergotherapie</span>
+      <h1 data-c="hero_title" data-em></h1>
+      <p class="lead" data-c="hero_text"></p>
       <div class="cta">
         <a class="btn" href="#termin">Jetzt Termin buchen</a>
         <a class="btn ghost" href="#leistungen">Unsere Leistungen</a>
       </div>
-      <div class="trust"><span>Alle Kassen &amp; Privat</span><span>Hausbesuche möglich</span><span>Kurze Wartezeiten</span></div>
+      <div class="trust" id="trust"></div>
     </div>
-    <div class="art" aria-hidden="true">
+    <div class="art" id="heroArt" aria-hidden="true">
       <svg viewBox="0 0 400 400" fill="none">
-        <path d="M60 210c0-95 70-150 150-150s130 60 130 140-50 150-140 150S60 305 60 210z" fill="#e3f0ea"/>
-        <circle cx="200" cy="170" r="62" fill="#fff" stroke="#3f7d6b" stroke-width="4"/>
-        <path d="M168 168q32 26 64 0" stroke="#3f7d6b" stroke-width="5" stroke-linecap="round"/>
-        <circle cx="180" cy="152" r="5" fill="#26332e"/><circle cx="220" cy="152" r="5" fill="#26332e"/>
-        <path d="M110 330c0-60 40-95 90-95s90 35 90 95" fill="#3f7d6b"/>
-        <rect x="82" y="248" width="52" height="52" rx="12" fill="#e07a5f" transform="rotate(-12 108 274)"/>
-        <circle cx="300" cy="260" r="30" fill="#f1c27d"/>
-        <path d="M285 90l18-26 18 26-18 8z" fill="#e07a5f" opacity=".85"/>
-        <circle cx="96" cy="120" r="14" fill="#f1c27d"/>
+        <path d="M60 210c0-95 70-150 150-150s130 60 130 140-50 150-140 150S60 305 60 210z" style="fill:var(--primary-l)"/>
+        <circle cx="200" cy="170" r="62" fill="#fff" style="stroke:var(--primary)" stroke-width="4"/>
+        <path d="M168 168q32 26 64 0" style="stroke:var(--primary)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="180" cy="152" r="5" style="fill:var(--ink)"/><circle cx="220" cy="152" r="5" style="fill:var(--ink)"/>
+        <path d="M110 330c0-60 40-95 90-95s90 35 90 95" style="fill:var(--primary)"/>
+        <rect x="82" y="248" width="52" height="52" rx="12" style="fill:var(--accent)" transform="rotate(-12 108 274)"/>
+        <circle cx="300" cy="260" r="30" style="fill:var(--sand)"/>
+        <path d="M285 90l18-26 18 26-18 8z" style="fill:var(--accent)" opacity=".85"/>
+        <circle cx="96" cy="120" r="14" style="fill:var(--sand)"/>
       </svg>
     </div>
   </div>
@@ -60,8 +61,8 @@
 <section id="leistungen">
   <div class="container center reveal">
     <span class="eyebrow">Leistungen</span>
-    <h2>Therapie, die zu Ihrem Alltag passt</h2>
-    <p class="lead">Jede Behandlung beginnt mit Ihren Zielen – nicht mit einem Standardprogramm.</p>
+    <h2 data-c="services_title"></h2>
+    <p class="lead" data-c="services_text"></p>
     <div class="cards" id="services" style="text-align:left"></div>
   </div>
 </section>
@@ -69,24 +70,36 @@
 <section id="ablauf" class="band">
   <div class="container reveal">
     <span class="eyebrow">So funktioniert's</span>
-    <h2>In drei Schritten zur Therapie</h2>
-    <div class="steps">
-      <div class="step"><h3>Termin wählen</h3><p>Leistung, Wunschtermin und Ihre Kontaktdaten – das war's schon. Ohne Anmeldung, ohne Passwort.</p></div>
-      <div class="step"><h3>Kennenlernen</h3><p>Im Erstgespräch klären wir Anliegen, Ziele und bringen bei Bedarf die ärztliche Verordnung auf den Weg.</p></div>
-      <div class="step"><h3>Gemeinsam üben</h3><p>Wir arbeiten praxisnah an dem, was Ihnen im Alltag wichtig ist – mit Spaß und in Ihrem Tempo.</p></div>
-    </div>
+    <h2 data-c="steps_title"></h2>
+    <div class="steps" id="steps"></div>
+  </div>
   </div>
 </section>
 
 <section id="ueber-uns">
   <div class="container about reveal">
-    <div class="portrait"><svg viewBox="0 0 200 200" fill="none"><circle cx="100" cy="70" r="38" fill="#fff"/><path d="M28 200c0-52 32-80 72-80s72 28 72 80z" fill="#fff"/></svg></div>
+    <div class="portrait" id="portrait"><svg viewBox="0 0 200 200" fill="none"><circle cx="100" cy="70" r="38" fill="#fff"/><path d="M28 200c0-52 32-80 72-80s72 28 72 80z" fill="#fff"/></svg></div>
     <div>
       <span class="eyebrow">Über uns</span>
-      <h2>Ich bin <span data-bind="therapist">Ihre Therapeutin</span></h2>
-      <p class="lead">Als Ergotherapeutin begleite ich Menschen jeden Alters dabei, ihren Alltag wieder selbstbestimmt zu gestalten – ob beim Schreibenlernen, nach einem Unfall oder bei Konzentrationsproblemen.</p>
-      <p>Mir ist eine ruhige, vertrauensvolle Atmosphäre wichtig. Eltern, Angehörige und behandelnde Ärztinnen und Ärzte beziehe ich gern mit ein. Hier können Sie später Ihre eigene Vorstellung, Qualifikationen und ein Foto ergänzen.</p>
+      <h2 data-c="about_title"></h2>
+      <div id="aboutText" class="about-text"></div>
     </div>
+  </div>
+</section>
+
+<section id="stimmen" class="band hidden-empty" hidden>
+  <div class="container center reveal">
+    <span class="eyebrow">Kundenstimmen</span>
+    <h2>Das sagen unsere Patient:innen</h2>
+    <div class="cards" id="testimonials" style="text-align:left"></div>
+  </div>
+</section>
+
+<section id="faq" hidden>
+  <div class="container reveal" style="max-width:780px">
+    <div class="center"><span class="eyebrow">FAQ</span>
+    <h2>Häufige Fragen</h2></div>
+    <div id="faqList" class="faq"></div>
   </div>
 </section>
 
