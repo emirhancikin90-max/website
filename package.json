@@ -1,0 +1,27 @@
+{
+  "name": "ergo-praxis",
+  "version": "1.0.0",
+  "description": "Website mit Terminbuchung und Admin-Panel für eine Ergotherapie-Praxis",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emirhancikin90-max/website.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/emirhancikin90-max/website/issues"
+  },
+  "homepage": "https://github.com/emirhancikin90-max/website#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0"
+  }
+}
